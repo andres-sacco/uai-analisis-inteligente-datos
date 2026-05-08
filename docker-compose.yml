@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+
+  ingestion:
+    build: ./docker/python
+    volumes:
+      - ./data:/app/data
+      - ./jobs:/app/jobs
+    environment:
+      - YEAR=2025
+    command: python jobs/data_ingestion.py
+
+  profiling:
+    build: ./docker/python
+    depends_on:
+      ingestion:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+      - ./jobs:/app/jobs
+    command: python jobs/data_profiling.py
+
+  cleaning:
+    build: ./docker/python
+    depends_on:
+      profiling:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+      - ./jobs:/app/jobs
+    command: python jobs/data_cleaning.py
+
+  aggregation:
+    build: ./docker/python
+    depends_on:
+      cleaning:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+      - ./jobs:/app/jobs
+    command: python jobs/data_aggregation.py

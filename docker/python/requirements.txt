@@ -1,0 +1,6 @@
+pandas
+pyarrow
+requests
+scikit-learn
+joblib
+great-expectations==0.18.15
