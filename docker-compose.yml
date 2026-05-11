@@ -9,6 +9,7 @@ services:
       - ./jobs:/app/jobs
     environment:
       - YEAR=2025
+      - MONTH=01
     command: python jobs/data_ingestion.py
 
   profiling:
@@ -30,6 +31,16 @@ services:
       - ./data:/app/data
       - ./jobs:/app/jobs
     command: python jobs/data_cleaning.py
+
+  visualization:
+    build: ./docker/python
+    depends_on:
+      cleaning:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+      - ./jobs:/app/jobs
+    command: python jobs/data_visualization.py
 
   aggregation:
     build: ./docker/python

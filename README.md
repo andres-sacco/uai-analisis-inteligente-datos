@@ -28,6 +28,7 @@ El objetivo principal es construir un pipeline simple de ingeniería de datos ca
 │   ├── raw
 │   ├── processed
 │   ├── output
+│   ├── graphics
 │   └── reports
 │
 ├── docker
@@ -36,6 +37,7 @@ El objetivo principal es construir un pipeline simple de ingeniería de datos ca
 │   ├── data_ingestion.py
 │   ├── data_cleaning.py
 │   ├── data_aggregation.py
+│   ├── data_visualization.py
 │   └── data_profiling.py
 │
 ├── docker-compose.yml
@@ -84,7 +86,9 @@ data_cleaning
       ↓
 data_profiling
       ↓
-data_aggregation
+data_visualization
+      ↓
+data_aggregation 
 ```
 
 ---
@@ -162,6 +166,35 @@ data/processed
 ```
 
 ---
+
+# 📉 Data Visualization
+
+El proyecto genera automáticamente visualizaciones para analizar distribuciones, detectar outliers y comparar métodos de normalización.
+
+Las visualizaciones incluyen:
+
+* histogramas
+* boxplots
+
+Los gráficos generados permiten:
+
+* entender distribuciones de variables
+* detectar anomalías
+* validar el proceso de limpieza
+* comparar escalas
+* preparar datos para Machine Learning
+
+---
+
+## 📂 Ubicación de los gráficos
+
+Todos los gráficos se almacenan en:
+
+```text id="x9m4k1"
+data/graphics
+```
+---
+
 
 # 📈 Data Aggregation
 
