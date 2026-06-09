@@ -1,101 +1,77 @@
 import os
 import requests
 
-YEAR = os.getenv("YEAR", "2025")
+# ==================================================
+# Dataset Víctimas de Siniestros Viales
+# ==================================================
 
-# Opcional
-MONTH = os.getenv("MONTH")
-
-BASE_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data"
+DATASET_URL = (
+    "https://data.buenosaires.gob.ar/dataset/"
+    "victimas-siniestros-viales/resource/"
+    "79914119-0e1e-47c6-9f7b-f1f7bf542786/download"
+)
 
 OUTPUT_DIR = "data/raw"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # ==================================================
-# Determinar meses a descargar
+# Nombre archivo
 # ==================================================
 
-if MONTH:
+output_file = (
+    f"{OUTPUT_DIR}/victimas_siniestros_viales.xlsx"
+)
 
-    months = [int(MONTH)]
+# ==================================================
+# Verificar existencia
+# ==================================================
+
+if os.path.exists(output_file):
 
     print(
-        f"📅 Descargando únicamente "
-        f"{YEAR}-{MONTH}"
+        f"✔ Archivo ya existe: "
+        f"{output_file}"
     )
 
 else:
 
-    months = range(1, 13)
-
-    print(
-        f"📅 Descargando todos los meses "
-        f"del año {YEAR}"
-    )
-
-# ==================================================
-# Descargar archivos
-# ==================================================
-
-for month in months:
-
-    month_str = str(month).zfill(2)
-
-    file_name = (
-        f"yellow_tripdata_{YEAR}-{month_str}.parquet"
-    )
-
-    url = f"{BASE_URL}/{file_name}"
-
-    output_path = (
-        f"{OUTPUT_DIR}/{file_name}"
-    )
-
-    # ==================================================
-    # Evitar descarga duplicada
-    # ==================================================
-
-    if os.path.exists(output_path):
-
-        print(f"✔ Ya existe: {file_name}")
-
-        continue
-
-    print(f"⬇️ Descargando {file_name}")
+    print("⬇️ Descargando dataset")
 
     try:
 
         response = requests.get(
-            url,
-            stream=True
+            DATASET_URL,
+            stream=True,
+            timeout=60
         )
 
         if response.status_code == 200:
 
-            with open(output_path, "wb") as f:
+            with open(output_file, "wb") as f:
 
                 for chunk in response.iter_content(
                     chunk_size=8192
                 ):
+                    if chunk:
+                        f.write(chunk)
 
-                    f.write(chunk)
-
-            print(f"✅ Descargado: {file_name}")
+            print(
+                f"✅ Dataset descargado: "
+                f"{output_file}"
+            )
 
         else:
 
             print(
-                f"❌ Error "
-                f"{response.status_code}: "
-                f"{file_name}"
+                f"❌ Error HTTP: "
+                f"{response.status_code}"
             )
 
     except Exception as e:
 
         print(
-            f"❌ Error descargando "
-            f"{file_name}: {e}"
+            f"❌ Error descargando dataset: {e}"
         )
 
 print("🎉 Descarga completada")

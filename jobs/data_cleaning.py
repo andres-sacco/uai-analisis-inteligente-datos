@@ -2,12 +2,43 @@ import pandas as pd
 import glob
 import os
 import gc
+import sys
 
-INPUT_FILES = glob.glob("data/raw/*.parquet")
+# ==================================================
+# Configuración
+# ==================================================
+
+INPUT_FILES = glob.glob(
+    "data/raw/*.xlsx"
+)
 
 OUTPUT_DIR = "data/processed"
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(
+    OUTPUT_DIR,
+    exist_ok=True
+)
+
+# ==================================================
+# Verificar archivos
+# ==================================================
+
+if not INPUT_FILES:
+
+    print(
+        "❌ No se encontraron archivos XLSX"
+    )
+
+    print(
+        "📂 Path buscado: data/raw/*.xlsx"
+    )
+
+    sys.exit(1)
+
+print(
+    f"✅ Archivos encontrados: "
+    f"{len(INPUT_FILES)}"
+)
 
 # ==================================================
 # Métricas globales
@@ -15,11 +46,8 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 total_original = 0
 total_final = 0
-
-total_removed_duration = 0
-total_removed_invalid = 0
-total_removed_extreme = 0
 total_duplicates = 0
+total_removed_geo = 0
 
 # ==================================================
 # Procesar archivos
@@ -29,266 +57,345 @@ for file in INPUT_FILES:
 
     print(f"\n📂 Procesando {file}")
 
-    df = pd.read_parquet(file)
+    try:
+
+        df = pd.read_excel(
+            file,
+            sheet_name="HECHOS"
+        )
+
+    except Exception as e:
+
+        print(
+            f"❌ Error leyendo sheet HECHOS: {e}"
+        )
+
+        continue
 
     original_count = len(df)
 
     total_original += original_count
 
-    print(f"📊 Registros originales: {original_count:,}")
-
-    # ==================================================
-    # Fechas
-    # ==================================================
-
-    df['tpep_pickup_datetime'] = pd.to_datetime(
-        df['tpep_pickup_datetime']
-    )
-
-    df['tpep_dropoff_datetime'] = pd.to_datetime(
-        df['tpep_dropoff_datetime']
+    print(
+        f"📊 Registros originales: "
+        f"{original_count:,}"
     )
 
     # ==================================================
-    # Duración viaje
+    # Eliminar filas vacías
     # ==================================================
 
-    df['trip_duration'] = (
-        df['tpep_dropoff_datetime']
-        - df['tpep_pickup_datetime']
-    ).dt.total_seconds() / 60
+    before_null_rows = len(df)
+
+    df = df.dropna(
+        how="all"
+    )
+
+    removed_null_rows = (
+        before_null_rows - len(df)
+    )
+
+    print(
+        f"🧹 Filas vacías eliminadas: "
+        f"{removed_null_rows:,}"
+    )
 
     # ==================================================
-    # Duraciones inválidas
+    # Eliminar registros sin ID
     # ==================================================
 
-    invalid_duration = df[
-        df['trip_duration'] <= 1
+    if "id_siniestro" in df.columns:
+
+        before_id = len(df)
+
+        df = df.dropna(
+            subset=["id_siniestro"]
+        )
+
+        removed_id = (
+            before_id - len(df)
+        )
+
+        print(
+            f"🧹 Registros sin ID: "
+            f"{removed_id:,}"
+        )
+
+
+    # ==================================================
+    # Conversión de fechas
+    # ==================================================
+
+    if "fecha_siniestro" in df.columns:
+
+        df["fecha_siniestro"] = (
+            pd.to_datetime(
+                df["fecha_siniestro"],
+                errors="coerce"
+            )
+        )
+
+    # ==================================================
+    # Conversión numérica
+    # ==================================================
+
+    numeric_columns = [
+
+        "numero_total_de_victimas",
+        "numero_victimas_leve_siniestro",
+        "numero_victimas_grave_siniestro",
+        "numero_victimas_mortal_siniestro",
+        "anio_siniestro",
+        "mes_siniestro",
+        "dia_siniestro",
+        "comuna_siniestro",
+        "longitud_siniestro",
+        "latitud_siniestro"
+
     ]
 
-    removed_duration = len(invalid_duration)
+    for col in numeric_columns:
 
-    total_removed_duration += removed_duration
+        if col in df.columns:
+            df[col] = pd.to_numeric(
+                df[col],
+                errors="coerce"
+            )
 
-    df = df[
-        df['trip_duration'] > 1
+    # ==================================================
+    # Imputación de víctimas faltantes
+    # ==================================================
+
+    victim_columns = [
+
+        "numero_total_de_victimas",
+        "numero_victimas_leve_siniestro",
+        "numero_victimas_grave_siniestro",
+        "numero_victimas_mortal_siniestro"
+
     ]
 
-    print(
-        f"❌ Duraciones inválidas eliminadas: "
-        f"{removed_duration:,}"
-    )
+    for col in victim_columns:
+
+        if col in df.columns:
+            df[col] = (
+
+                df[col]
+
+                .replace(
+                    [
+                        "SD",
+                        "sd",
+                        "S/D",
+                        "s/d",
+                        "SIN DATO",
+                        "Sin dato",
+                        ""
+                    ],
+                    0
+                )
+
+            )
+
+            df[col] = pd.to_numeric(
+                df[col],
+                errors="coerce"
+            )
+
+            df[col] = (
+                df[col]
+                .fillna(0)
+                .astype(int)
+            )
 
     # ==================================================
-    # Filtrado de valores inválidos
+    # Hora del siniestro
+    # Algunos registros vienen con formato HH:MM
     # ==================================================
 
-    filas_antes = len(df)
-
-    print(
-        f"\n📊 Filas antes filtrado: "
-        f"{filas_antes:,}"
-    )
-
-    # ==================================================
-    # Valores inválidos
-    # ==================================================
-
-    df = df[
-
-        (df['trip_distance'] > 0) &
-
-        (df['fare_amount'] >= 0) &
-
-        (df['tip_amount'] >= 0) &
-
-        (df['total_amount'] >= 0)
-
-    ].copy()
-
-    filas_post_invalidos = len(df)
-
-    eliminadas_invalidos = (
-        filas_antes - filas_post_invalidos
-    )
-
-    total_removed_invalid += (
-        eliminadas_invalidos
-    )
-
-    print(
-        f"🧹 Eliminados por valores inválidos: "
-        f"{eliminadas_invalidos:,} "
-        f"({(eliminadas_invalidos / filas_antes) * 100:.2f}%)"
-    )
+    if "rango_horario" in df.columns:
+        df["hora_siniestro"] = pd.to_numeric(
+            df["rango_horario"]
+            .astype(str)
+            .str.extract(r"(\d+)")[0],
+            errors="coerce"
+        ).fillna(0).astype(int)
 
     # ==================================================
-    # Valores físicamente imposibles
+    # Otras columnas numéricas
     # ==================================================
 
-    df = df[
+    other_numeric_columns = [
 
-        (df['trip_distance'] <= 100) &
+        "comuna_siniestro",
+        "latitud_siniestro",
+        "longitud_siniestro"
 
-        (df['fare_amount'] <= 500) &
+    ]
 
-        (df['tip_amount'] <= 200)
+    for col in other_numeric_columns:
 
-    ].copy()
-
-    filas_post_extremos = len(df)
-
-    eliminadas_extremos = (
-        filas_post_invalidos
-        - filas_post_extremos
-    )
-
-    total_removed_extreme += (
-        eliminadas_extremos
-    )
-
-    print(
-        f"🧹 Eliminados por valores extremos imposibles: "
-        f"{eliminadas_extremos:,} "
-        f"({(eliminadas_extremos / filas_antes) * 100:.4f}%)"
-    )
-
+        if col in df.columns:
+            df[col] = (
+                df[col]
+                .fillna(0)
+            )
     # ==================================================
-    # Totales limpieza
+    # Eliminar duplicados
     # ==================================================
 
-    print(
-        f"\n📊 Filas después limpieza: "
-        f"{filas_post_extremos:,}"
+    if "id_siniestro" in df.columns:
+
+        before_duplicates = len(df)
+
+        df = df.drop_duplicates(
+            subset=["id_siniestro"]
+        )
+
+        duplicates_removed = (
+            before_duplicates - len(df)
+        )
+
+    else:
+
+        before_duplicates = len(df)
+
+        df = df.drop_duplicates()
+
+        duplicates_removed = (
+            before_duplicates - len(df)
+        )
+
+    total_duplicates += (
+        duplicates_removed
     )
-
-    print(
-        f"🧹 Total eliminadas: "
-        f"{filas_antes - filas_post_extremos:,} "
-        f"({((filas_antes - filas_post_extremos) / filas_antes) * 100:.2f}%)"
-    )
-
-    # ==================================================
-    # Duplicados
-    # ==================================================
-
-    before_duplicates = len(df)
-
-    df = df.drop_duplicates()
-
-    duplicates_removed = (
-        before_duplicates - len(df)
-    )
-
-    total_duplicates += duplicates_removed
 
     print(
-        f"\n❌ Duplicados eliminados: "
+        f"❌ Duplicados eliminados: "
         f"{duplicates_removed:,}"
     )
 
     # ==================================================
-    # Imputación de valores faltantes
+    # Coordenadas inválidas
     # ==================================================
 
-    print("\n🧹 Imputando valores faltantes")
+    if (
+        "latitud_siniestro" in df.columns
+        and
+        "longitud_siniestro" in df.columns
+    ):
 
-    # passenger_count
+        before_geo = len(df)
 
-    if 'passenger_count' in df.columns:
+        df = df[
+            (
+                df["latitud_siniestro"]
+                .between(-90, 90)
+            )
+            &
+            (
+                df["longitud_siniestro"]
+                .between(-180, 180)
+            )
+        ]
 
-        df['passenger_count'] = (
-            df['passenger_count']
-            .fillna(1)
+        removed_geo = (
+            before_geo - len(df)
         )
 
-    # RatecodeID
-
-    if 'RatecodeID' in df.columns:
-
-        df['RatecodeID'] = (
-            df['RatecodeID']
-            .fillna(1)
+        total_removed_geo += (
+            removed_geo
         )
 
-    # store_and_fwd_flag
-
-    if 'store_and_fwd_flag' in df.columns:
-
-        df['store_and_fwd_flag'] = (
-            df['store_and_fwd_flag']
-            .fillna('N')
-        )
-
-    # congestion_surcharge
-
-    if 'congestion_surcharge' in df.columns:
-
-        df['congestion_surcharge'] = (
-            df['congestion_surcharge']
-            .fillna(0)
-        )
-
-    # Airport_fee
-
-    if 'Airport_fee' in df.columns:
-
-        df['Airport_fee'] = (
-            df['Airport_fee']
-            .fillna(0)
-        )
-
-    # tip_amount
-
-    if 'tip_amount' in df.columns:
-
-        df['tip_amount'] = (
-            df['tip_amount']
-            .fillna(0)
+        print(
+            f"🧹 Coordenadas inválidas eliminadas: "
+            f"{removed_geo:,}"
         )
 
     # ==================================================
-    # Verificación post imputación
+    # Normalizar campos categóricos
     # ==================================================
 
-    columnas_imputadas = [
+    text_columns = [
 
-        'passenger_count',
-        'RatecodeID',
-        'store_and_fwd_flag',
-        'congestion_surcharge',
-        'Airport_fee',
-        'tip_amount'
+        "rango_horario",
+        "direccion_normalizada_siniestro",
+        "tipo_de_via_siniestro",
+        "participantes_siniestro",
+        "modo_desplazamiento_victima",
+        "contraparte_siniestro",
+        "gravedad_siniestro"
+
     ]
 
-    columnas_existentes = [
+    for col in text_columns:
 
-        col for col in columnas_imputadas
-        if col in df.columns
-    ]
+        if col in df.columns:
 
-    print("\n✅ Verificación post-imputación")
-
-    print(
-        df[columnas_existentes]
-        .isnull()
-        .sum()
-    )
+            df[col] = (
+                df[col]
+                .fillna("DESCONOCIDO")
+                .astype(str)
+                .str.upper()
+                .str.strip()
+            )
 
     # ==================================================
-    # Feature Engineering
+    # Imputación general de texto
     # ==================================================
 
-    print("\n⚙️ Generando features")
+    object_columns = df.select_dtypes(
+        include=["object"]
+    ).columns
 
-    df['hour'] = (
-        df['tpep_pickup_datetime']
-        .dt.hour
-    )
+    for col in object_columns:
 
-    df['day_of_week'] = (
-        df['tpep_pickup_datetime']
-        .dt.dayofweek
+        df[col] = (
+            df[col]
+            .fillna("DESCONOCIDO")
+            .astype(str)
+            .str.strip()
+        )
+
+    # ==================================================
+    # Variables temporales
+    # ==================================================
+
+    if "fecha_siniestro" in df.columns:
+
+        df["dia_semana"] = (
+            df["fecha_siniestro"]
+            .dt.dayofweek
+        )
+
+        df["mes"] = (
+            df["fecha_siniestro"]
+            .dt.month
+        )
+
+        df["anio"] = (
+            df["fecha_siniestro"]
+            .dt.year
+        )
+
+        df["trimestre"] = (
+            df["fecha_siniestro"]
+            .dt.quarter
+        )
+
+        df["fin_de_semana"] = (
+            df["dia_semana"]
+            .isin([5, 6])
+            .astype(int)
+        )
+
+    # ==================================================
+    # Eliminar columnas completamente vacías
+    # ==================================================
+
+    df = df.dropna(
+        axis=1,
+        how="all"
     )
 
     # ==================================================
@@ -299,24 +406,40 @@ for file in INPUT_FILES:
 
     total_final += final_count
 
-    print(f"\n✅ Registros finales: {final_count:,}")
+    print(
+        f"✅ Registros finales: "
+        f"{final_count:,}"
+    )
 
     # ==================================================
-    # Guardar archivo limpio
+    # Guardar CSV limpio
     # ==================================================
 
-    file_name = os.path.basename(file)
+    file_name = os.path.basename(
+        file
+    )
+
+    output_name = (
+        file_name.replace(
+            ".xlsx",
+            "_hechos_clean.csv"
+        )
+    )
 
     output_path = (
-        f"{OUTPUT_DIR}/clean_{file_name}"
+        f"{OUTPUT_DIR}/{output_name}"
     )
 
-    df.to_parquet(
+    df.to_csv(
         output_path,
-        index=False
+        index=False,
+        encoding="utf-8"
     )
 
-    print(f"💾 Guardado: {output_path}")
+    print(
+        f"💾 Guardado: "
+        f"{output_path}"
+    )
 
     # ==================================================
     # Liberar memoria
@@ -326,7 +449,9 @@ for file in INPUT_FILES:
 
     gc.collect()
 
-    print("🧹 Memoria liberada")
+    print(
+        "🧹 Memoria liberada"
+    )
 
 # ==================================================
 # Resumen global
@@ -342,23 +467,13 @@ print(
 )
 
 print(
-    f"❌ Eliminados duración inválida: "
-    f"{total_removed_duration:,}"
-)
-
-print(
-    f"❌ Eliminados valores inválidos: "
-    f"{total_removed_invalid:,}"
-)
-
-print(
-    f"❌ Eliminados valores extremos: "
-    f"{total_removed_extreme:,}"
-)
-
-print(
     f"❌ Duplicados eliminados: "
     f"{total_duplicates:,}"
+)
+
+print(
+    f"❌ Coordenadas inválidas: "
+    f"{total_removed_geo:,}"
 )
 
 print(
@@ -375,11 +490,14 @@ print(
     f"{removed_total:,}"
 )
 
-clean_percentage = (
-    (total_final / total_original) * 100
-)
+if total_original > 0:
 
-print(
-    f"✨ % conservación: "
-    f"{clean_percentage:.2f}%"
-)
+    clean_percentage = (
+        total_final
+        / total_original
+    ) * 100
+
+    print(
+        f"✨ % conservación: "
+        f"{clean_percentage:.2f}%"
+    )

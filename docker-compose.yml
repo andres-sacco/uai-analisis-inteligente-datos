@@ -3,7 +3,7 @@ version: "3.9"
 services:
 
   ingestion:
-    build: ./docker/python
+    build: ./docker
     volumes:
       - ./data:/app/data
       - ./jobs:/app/jobs
@@ -12,42 +12,53 @@ services:
       - MONTH=01
     command: python jobs/data_ingestion.py
 
-  profiling:
-    build: ./docker/python
+  cleaning:
+    build: ./docker
     depends_on:
       ingestion:
         condition: service_completed_successfully
     volumes:
       - ./data:/app/data
       - ./jobs:/app/jobs
-    command: python jobs/data_profiling.py
+    command: python jobs/data_cleaning.py
 
-  cleaning:
-    build: ./docker/python
+  quality:
+    build: ./docker
     depends_on:
-      profiling:
+      cleaning:
         condition: service_completed_successfully
     volumes:
       - ./data:/app/data
       - ./jobs:/app/jobs
-    command: python jobs/data_cleaning.py
+    command: python jobs/data_quality.py
+
+  supervised_machine_learning:
+    build: ./docker
+    depends_on:
+      quality:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+      - ./jobs:/app/jobs
+    command: python jobs/data_supervised_learning.py
+
+
+  unsupervised_machine_learning:
+    build: ./docker
+    depends_on:
+      quality:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+      - ./jobs:/app/jobs
+    command: python jobs/data_unsupervised_learning.py
 
   visualization:
-    build: ./docker/python
+    build: ./docker
     depends_on:
-      cleaning:
+      quality:
         condition: service_completed_successfully
     volumes:
       - ./data:/app/data
       - ./jobs:/app/jobs
     command: python jobs/data_visualization.py
-
-  aggregation:
-    build: ./docker/python
-    depends_on:
-      cleaning:
-        condition: service_completed_successfully
-    volumes:
-      - ./data:/app/data
-      - ./jobs:/app/jobs
-    command: python jobs/data_aggregation.py
