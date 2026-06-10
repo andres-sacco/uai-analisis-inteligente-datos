@@ -203,7 +203,7 @@ print(
 )
 
 kmeans = KMeans(
-    n_clusters=2,
+    n_clusters=3,
     random_state=42,
     n_init=10
 )
@@ -347,6 +347,142 @@ print(
     f"💾 Gráfico guardado: "
     f"{graphic_output}"
 )
+
+# ==================================================
+# DISTRIBUCIÓN HORARIA POR CLUSTER
+# ==================================================
+
+print("\n🕒 Generando distribución horaria por cluster")
+
+fig, ax = plt.subplots(figsize=(12, 5))
+
+N_CLUSTERS = kmeans.n_clusters
+
+for i in range(N_CLUSTERS):
+
+    datos_hora = result_df[
+        result_df["cluster"] == i
+    ]["hora_siniestro"]
+
+    ax.hist(
+        datos_hora,
+        bins=24,
+        alpha=0.5,
+        label=f"Cluster {i}",
+        edgecolor="white"
+    )
+
+ax.set_title(
+    "Distribución horaria por cluster",
+    fontsize=14,
+    fontweight="bold"
+)
+
+ax.set_xlabel("Hora del siniestro")
+ax.set_ylabel("Cantidad")
+ax.set_xticks(range(0, 24))
+ax.legend()
+ax.grid(True, alpha=0.3)
+
+plt.tight_layout()
+
+hora_output = (
+    f"{OUTPUT_DIR}/cluster_hour_distribution.png"
+)
+
+plt.savefig(
+    hora_output,
+    dpi=150,
+    bbox_inches="tight"
+)
+
+plt.close()
+
+print(
+    f"💾 Gráfico guardado: "
+    f"{hora_output}"
+)
+
+# ==================================================
+# DISTRIBUCIÓN DE GRAVEDAD POR CLUSTER
+# ==================================================
+
+if "gravedad_siniestro" in result_df.columns:
+
+    print(
+        "\n⚠️ Generando distribución "
+        "de gravedad por cluster"
+    )
+
+    fig, axes = plt.subplots(
+        1,
+        N_CLUSTERS,
+        figsize=(5 * N_CLUSTERS, 5),
+        sharey=True
+    )
+
+    if N_CLUSTERS == 1:
+        axes = [axes]
+
+    for i in range(N_CLUSTERS):
+
+        datos_cluster = (
+            result_df[
+                result_df["cluster"] == i
+            ]["gravedad_siniestro"]
+            .value_counts()
+        )
+
+        datos_cluster.plot(
+            kind="bar",
+            ax=axes[i],
+            color=plt.cm.viridis(
+                i / N_CLUSTERS
+            )
+        )
+
+        axes[i].set_title(
+            f"Cluster {i}",
+            fontweight="bold"
+        )
+
+        axes[i].set_xlabel(
+            "Gravedad"
+        )
+
+        axes[i].tick_params(
+            axis="x",
+            rotation=45
+        )
+
+    axes[0].set_ylabel(
+        "Cantidad de siniestros"
+    )
+
+    fig.suptitle(
+        "Distribución de gravedad por cluster",
+        fontsize=14,
+        fontweight="bold"
+    )
+
+    plt.tight_layout()
+
+    gravedad_output = (
+        f"{OUTPUT_DIR}/cluster_gravity_distribution.png"
+    )
+
+    plt.savefig(
+        gravedad_output,
+        dpi=150,
+        bbox_inches="tight"
+    )
+
+    plt.close()
+
+    print(
+        f"💾 Gráfico guardado: "
+        f"{gravedad_output}"
+    )
 
 # ==================================================
 # DATASET FINAL

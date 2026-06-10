@@ -285,17 +285,11 @@ plt.plot(
 
 )
 
-plt.title(
-    "Accuracy por valor de K"
-)
-
-plt.xlabel(
-    "K"
-)
-
-plt.ylabel(
-    "Accuracy"
-)
+plt.axvline(x=best_k, color="red", linestyle="--", alpha=0.7, label=f"Mejor K = {int(best_k)}")
+plt.title("Accuracy por valor de K", fontsize=14, fontweight="bold")
+plt.xlabel("K (número de vecinos)")
+plt.ylabel("Accuracy")
+plt.xticks(range(1, 21))
 
 plt.grid(True)
 
@@ -392,6 +386,7 @@ print(
 # ==================================================
 # MATRIZ DE CONFUSION
 # ==================================================
+fig, ax = plt.subplots(figsize=(6, 5))
 
 cm = confusion_matrix(
     y_test,
@@ -399,10 +394,12 @@ cm = confusion_matrix(
 )
 
 disp = ConfusionMatrixDisplay(
-    confusion_matrix=cm
+    confusion_matrix=cm, display_labels=["Sin muerte", "Con muerte"]
 )
 
-disp.plot()
+disp.plot(ax=ax, cmap="Blues")
+plt.title("Matriz de Confusión — k-NN", fontsize=14, fontweight="bold")
+plt.tight_layout()
 
 plt.savefig(
 
