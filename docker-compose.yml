@@ -3,7 +3,7 @@ version: "3.9"
 services:
 
   ingestion:
-    build: ./docker
+    build: ./docker/python/
     volumes:
       - ./data:/app/data
       - ./jobs:/app/jobs
@@ -13,7 +13,7 @@ services:
     command: python jobs/data_ingestion.py
 
   cleaning:
-    build: ./docker
+    build: ./docker/python/
     depends_on:
       ingestion:
         condition: service_completed_successfully
@@ -23,7 +23,7 @@ services:
     command: python jobs/data_cleaning.py
 
   quality:
-    build: ./docker
+    build: ./docker/python/
     depends_on:
       cleaning:
         condition: service_completed_successfully
@@ -32,33 +32,12 @@ services:
       - ./jobs:/app/jobs
     command: python jobs/data_quality.py
 
-  supervised_machine_learning:
-    build: ./docker
+  deep_learning:
+    build: ./docker/tensorflow/
     depends_on:
       quality:
         condition: service_completed_successfully
     volumes:
       - ./data:/app/data
       - ./jobs:/app/jobs
-    command: python jobs/data_supervised_learning.py
-
-
-  unsupervised_machine_learning:
-    build: ./docker
-    depends_on:
-      quality:
-        condition: service_completed_successfully
-    volumes:
-      - ./data:/app/data
-      - ./jobs:/app/jobs
-    command: python jobs/data_unsupervised_learning.py
-
-  visualization:
-    build: ./docker
-    depends_on:
-      quality:
-        condition: service_completed_successfully
-    volumes:
-      - ./data:/app/data
-      - ./jobs:/app/jobs
-    command: python jobs/data_visualization.py
+    command: python -u jobs/data_deep_learning.py

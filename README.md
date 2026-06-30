@@ -4,22 +4,25 @@ Proyecto orientado al procesamiento, análisis y modelado de datos de siniestros
 
 El objetivo principal es construir un pipeline completo de ingeniería de datos capaz de:
 
-* procesar datasets reales de siniestros viales
-* limpiar información inconsistente o incompleta
-* generar métricas descriptivas de los eventos
-* detectar anomalías en variables críticas
-* visualizar distribuciones espaciales y temporales
-* realizar agregaciones sobre incidentes viales
-* aplicar técnicas de Machine Learning no supervisado para segmentación de siniestros
+* ingesta automatizada de datasets de siniestros viales
+* limpieza y transformación de los datos
+* validación de calidad e integridad de la información
+* generación de variables derivadas para el análisis
+* análisis exploratorio mediante estadísticas descriptivas y visualizaciones
+* entrenamiento y evaluación de un modelo de Deep Learning para la predicción de siniestros con víctimas fatales
+* generación automática de reportes, métricas y gráficos para el análisis de resultados
 
 ---
 
 # 🚀 Tecnologías Utilizadas
 
-* Python
+* Python 
+* TensorFlow / Keras
 * Pandas
-* Scikit-Learn
+* NumPy
+* Scikit-learn
 * Matplotlib
+* Great Expectations
 * Docker
 * Docker Compose
 * CSV
@@ -33,7 +36,6 @@ El objetivo principal es construir un pipeline completo de ingeniería de datos 
 ├── data
 │   ├── raw
 │   ├── processed
-│   ├── output
 │   ├── graphics
 │   └── reports
 │
@@ -44,11 +46,9 @@ El objetivo principal es construir un pipeline completo de ingeniería de datos 
 │   ├── data_cleaning.py
 │   ├── data_quality.py
 │   ├── data_visualization.py
-│   ├── data_supervised_learning.py
-│   └── data_unsupervised_learning.py
+│   └── data_deep_learning.py
 │
 ├── docker-compose.yml
-├── requirements.txt
 └── README.md
 ```
 
@@ -85,9 +85,7 @@ El pipeline implementa:
 * Data Ingestion
 * Data Cleaning
 * Data Quality Validation
-* Data Visualization
-* Machine Learning Unsupervised
-* Machine Learning Supervised
+* Data Deep Learning
 
 ---
 
@@ -102,9 +100,7 @@ data_quality
       ↓
 data_visualization
       ↓
-data_supervised_learning
-      ↓
-data_unsupervised_learning
+data_deep_learning
 ```
 
 ---
@@ -177,26 +173,29 @@ data/reports
 
 ---
 
-# 📉 Data Visualization
+# 📉 Data Deep Learning
 
-El proyecto genera visualizaciones automáticas para analizar distribuciones, detectar anomalías y validar patrones en siniestros viales.
+El pipeline incorpora un modelo de Deep Learning desarrollado con TensorFlow/Keras para predecir la probabilidad de que un siniestro vial tenga víctimas fatales a partir de las variables disponibles en el conjunto de datos.
 
-Las visualizaciones incluyen:
+El proceso incluye:
 
-* histogramas de variables numéricas
-* boxplots para detección de outliers
-* distribución de variables categóricas
-* análisis de severidad de siniestros
-* normalización de variables críticas
-* visualización de clustering
+- preparación y selección de variables predictoras
+- codificación de variables categóricas
+- normalización de variables numéricas
+- división del dataset en entrenamiento y prueba
+- entrenamiento de una red neuronal multicapa (MLP)
+- evaluación del modelo mediante métricas de clasificación
+- generación de visualizaciones del proceso de entrenamiento
 
-Estos gráficos permiten:
+Durante la ejecución se generan automáticamente los siguientes artefactos:
 
-* entender distribución de accidentes
-* detectar patrones de riesgo
-* analizar comportamiento temporal
-* validar limpieza de datos
-* visualizar agrupamientos
+- reporte de clasificación
+- matriz de confusión
+- historial del entrenamiento
+- curvas de pérdida (Loss)
+- curvas de Recall
+- distribución de probabilidades predichas
+- predicciones del conjunto de prueba
 
 ---
 
@@ -209,77 +208,6 @@ data/graphics
 ```
 
 
----
-
-# 🤖 Data Machine Learning: No Supervisado
-
-El proyecto implementa técnicas de Machine Learning para identificar patrones en siniestros viales.
-
-## Técnicas utilizadas
-
-### K-Means Clustering
-
-Permite segmentar siniestros en grupos según:
-
-* cantidad de víctimas
-* severidad del accidente
-* ubicación geográfica
-* variables temporales
-* tipo de vía
-* contraparte involucrada
-
-Los resultados permiten identificar perfiles de siniestros de alto riesgo, patrones urbanos y comportamientos recurrentes.
-
----
-
-## Ubicación de resultados
-
-Todos los resultados se almacenan en:
-
-```text
-data/output/unsupervised_learning
-```
----
-
-# 🤖 Data Machine Learning: Supervisado
-
-El proyecto implementa técnicas de Machine Learning supervisado para predecir la ocurrencia de siniestros con víctimas fatales a partir de variables temporales, geográficas y estructurales del evento.
-
-## Técnicas utilizadas
-
-### K-Nearest Neighbors (KNN)
-
-Se utiliza el algoritmo KNN como modelo de clasificación supervisada para predecir la variable objetivo:
-
-> **hay_muerte (0/1)** → indica si el siniestro tuvo al menos una víctima mortal.
-
-El modelo aprende patrones a partir de eventos históricos y clasifica nuevos registros en función de su similitud con casos anteriores.
-
----
-
-## Variables utilizadas (features)
-
-El modelo utiliza variables del contexto del siniestro:
-
-* hora del siniestro
-* comuna del siniestro
-* día de la semana
-* mes del año
-* ubicación geográfica (latitud / longitud)
-* número total de víctimas
-
-Estas variables permiten capturar patrones temporales, espaciales y de severidad del accidente.
-
----
-
-## Ubicación de resultados
-
-Todos los resultados se almacenan en:
-
-```text
-data/output/supervised_learning
-```
----
 
 
 # 🚀 Ejecución Local
@@ -320,22 +248,10 @@ python jobs/data_cleaning.py
 python jobs/data_quality.py
 ```
 
-## Visualización
+## Deep Learning
 
 ```bash
-python jobs/data_visualization.py
-```
-
-## Machine Learning: Supervised
-
-```bash
-python jobs/data_supervised_learning.py
-```
-
-## Machine Learning: Unsupervised
-
-```bash
-python jobs/data_unsupervised_learning.py
+python jobs/data_deep_learning.py
 ```
 
 

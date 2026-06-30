@@ -1,0 +1,9 @@
+pandas
+pyarrow
+requests
+scikit-learn
+joblib
+great-expectations==0.18.15
+matplotlib==3.9.0
+seaborn
+openpyxl
